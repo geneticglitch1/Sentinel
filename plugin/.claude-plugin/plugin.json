@@ -1,0 +1,7 @@
+{
+  "name": "sentinel",
+  "version": "0.1.0",
+  "description": "Homelab orchestration — drive Proxmox, OPNsense, and a Docker host from Claude. Dry-run by default.",
+  "author": { "name": "Aryan Singh" },
+  "homepage": "https://github.com/aryan/Sentinel"
+}

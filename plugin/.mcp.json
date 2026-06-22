@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sentinel": {
+      "command": "sentinel",
+      "args": ["mcp"],
+      "env": {
+        "SENTINEL_CONFIG": "${CLAUDE_PLUGIN_ROOT}/../config.yaml"
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+# Runs on the Docker host (192.168.1.217). sentinel-agent + (optionally) secdash,
+# sharing the audit DB volume so the dashboard reads what the agent writes.
+
+services:
+  sentinel-agent:
+    build: .
+    container_name: sentinel-agent
+    restart: unless-stopped
+    ports:
+      - "8799:8799"
+    environment:
+      - SENTINEL_CONFIG=/app/config.yaml
+      - SENTINEL_AUDIT_DB=/data/audit.db
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SENTINEL_SSH_KEY_PATH=/keys/id_ed25519
+    volumes:
+      - sentinel-data:/data
+      - ./config.yaml:/app/config.yaml:ro
+      # Mount the SSH key that reaches the firewall / Proxmox / this host:
+      - ${SSH_KEY:-~/.ssh/id_ed25519}:/keys/id_ed25519:ro
+      # NPM access logs (read-only) for per-domain stats:
+      - /data/compose/1/data/logs:/data/compose/1/data/logs:ro
+
+  # Your existing secdash, extended with the Sentinel panels (see dashboard/README.md).
+  # Uncomment once you've merged the drop-ins into the pulled secdash source.
+  # secdash:
+  #   build: ./dashboard/secdash
+  #   container_name: secdash
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8095:3000"
+  #   environment:
+  #     - SENTINEL_AGENT_URL=http://sentinel-agent:8799
+  #   volumes:
+  #     - /data/compose/1/data/logs:/npmlogs:ro
+  #   depends_on:
+  #     - sentinel-agent
+
+volumes:
+  sentinel-data:

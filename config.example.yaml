@@ -1,0 +1,48 @@
+# Sentinel topology (non-secret). Copy to config.yaml and edit for your network.
+# Secrets (API keys, tokens, ANTHROPIC_API_KEY) go in .env — never here.
+#
+# Defaults below already match the real homelab and assume the box running Sentinel
+# is on the LAN (192.168.1.0/24). If you run it from outside the LAN, point hosts at
+# the WireGuard addresses or add a `jump:` block (see the examples).
+
+model: claude-opus-4-8
+dry_run_default: true
+# audit_db: ~/.sentinel/audit.db        # in the container this is /data/audit.db
+
+proxmox:
+  api_host: 192.168.1.2
+  api_port: 8006
+  node: pve                              # your node name (qm/pct use this)
+  verify_ssl: false
+  ssh:                                   # SSH fallback when no API token is set
+    host: 192.168.1.2
+    port: 22
+    user: root
+
+opnsense:
+  base_url: https://192.168.1.1          # LAN GUI/API; use the WireGuard IP off-LAN
+  verify_ssl: false
+  geoip_db: /usr/local/share/GeoIP/GeoLite2-Country.mmdb
+  filter_log: /var/log/filter/latest.log
+  ssh:
+    host: 192.168.1.1                    # firewall is bound to LAN/WireGuard, port 22
+    port: 22
+    user: root
+    # Reaching the firewall from outside the LAN? Jump through the Proxmox host:
+    # jump:
+    #   host: 192.168.1.2
+    #   user: root
+
+docker:
+  npm_logs: /data/compose/1/data/logs    # Nginx Proxy Manager access logs
+  ssh:
+    host: 192.168.1.217
+    port: 22
+    user: aryan                          # in the docker group → no sudo needed
+    # jump:
+    #   host: 192.168.1.2
+    #   user: root
+
+ntfy:
+  base_url: http://192.168.1.217:8090    # publish straight to the container
+  topic: firewall-alerts
