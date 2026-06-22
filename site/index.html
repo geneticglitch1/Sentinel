@@ -3,491 +3,205 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sentinel — drive your homelab from one sentence</title>
+    <title>Sentinel</title>
     <meta
       name="description"
-      content="Sentinel is a Claude-driven control plane for a homelab — Proxmox, OPNsense, and Docker from one sentence. MCP server, Agent SDK app, and dashboard, with dry-run safety baked in."
-    />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap"
-      rel="stylesheet"
+      content="An AI agent that runs my homelab. I describe a change in plain English; an LLM (Claude) plans the tool calls and executes them across Proxmox, OPNsense, and Docker — with a dry run and a confirm step first."
     />
     <style>
       :root {
-        --bg: #070b07;
-        --bg2: #0b110b;
-        --card: #0e150e;
-        --line: #18301a;
-        --neon: #39ff14;
-        --cyan: #00e5ff;
-        --amber: #ff9a3c;
-        --red: #ff5b5b;
-        --txt: #c9f5cf;
-        --dim: #6f9a76;
-        --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --bg: #ffffff;
+        --fg: #1b1b1b;
+        --muted: #606770;
+        --line: #e7e7e9;
+        --accent: #2b5fb0;
+        --codebg: #f6f7f9;
       }
       * { box-sizing: border-box; }
-      html { scroll-behavior: smooth; }
+      html { -webkit-text-size-adjust: 100%; }
       body {
         margin: 0;
-        background: radial-gradient(1200px 600px at 50% -10%, #0d1a0d 0%, var(--bg) 60%);
-        color: var(--txt);
-        font-family: var(--mono);
-        line-height: 1.6;
-        overflow-x: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       }
-      /* scanline + grid overlays */
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        background:
-          linear-gradient(rgba(57, 255, 20, 0.03) 1px, transparent 1px) 0 0 / 100% 3px,
-          radial-gradient(circle at 50% 0, rgba(0, 229, 255, 0.05), transparent 70%);
-        z-index: 0;
-        mix-blend-mode: screen;
+      .wrap { max-width: 700px; margin: 0 auto; padding: 0 22px; }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.01em; }
+      h2 { font-size: 19px; margin: 42px 0 10px; letter-spacing: -0.01em; }
+      h3 { font-size: 15px; margin: 22px 0 4px; }
+      p { margin: 0 0 14px; }
+      .muted { color: var(--muted); }
+      header { padding: 70px 0 8px; }
+      .tagline { color: var(--muted); font-size: 17px; margin: 0 0 18px; }
+      .toplinks { font-size: 14px; }
+      .toplinks a { color: var(--muted); }
+      .toplinks a:hover { color: var(--accent); }
+      ul { margin: 0 0 14px; padding-left: 20px; }
+      li { margin: 5px 0; }
+      ol { margin: 0 0 14px; padding-left: 20px; }
+      ol li { margin: 6px 0; }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13.5px;
+        background: var(--codebg);
+        padding: 1px 5px;
+        border-radius: 4px;
       }
-      a { color: var(--cyan); text-decoration: none; }
-      a:hover { text-shadow: 0 0 10px var(--cyan); }
-      .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
-
-      /* nav */
-      nav {
-        position: sticky; top: 0; z-index: 50;
-        backdrop-filter: blur(8px);
-        background: rgba(7, 11, 7, 0.7);
-        border-bottom: 1px solid var(--line);
+      pre {
+        background: var(--codebg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px 16px;
+        overflow-x: auto;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.55;
+        margin: 0 0 14px;
       }
-      nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 58px; }
-      .brand { font-weight: 800; letter-spacing: 0.25em; color: var(--neon); text-shadow: 0 0 14px rgba(57,255,20,0.5); }
-      .brand b { color: var(--cyan); }
-      .navlinks { display: flex; gap: 20px; font-size: 13px; }
-      .navlinks a { color: var(--dim); }
-      .navlinks a:hover { color: var(--neon); text-shadow: none; }
-      @media (max-width: 720px) { .navlinks { display: none; } }
-
-      /* hero */
-      header { padding: 90px 0 40px; }
-      .tag {
-        display: inline-block; font-size: 12px; letter-spacing: 0.2em;
-        color: var(--cyan); border: 1px solid var(--line); border-radius: 999px;
-        padding: 4px 12px; margin-bottom: 22px;
-      }
-      h1 {
-        font-size: clamp(44px, 9vw, 96px); margin: 0; line-height: 0.95; letter-spacing: 0.04em;
-        color: #eafff0; text-shadow: 0 0 30px rgba(57,255,20,0.35);
-      }
-      h1 span { color: var(--neon); }
-      .lede { font-size: clamp(16px, 2.4vw, 22px); color: var(--txt); max-width: 640px; margin: 22px 0 0; }
-      .sub { color: var(--dim); max-width: 640px; margin: 10px 0 30px; font-size: 15px; }
-      .cta { display: flex; gap: 14px; flex-wrap: wrap; }
-      .btn {
-        font-family: var(--mono); font-weight: 600; font-size: 14px;
-        padding: 11px 20px; border-radius: 8px; border: 1px solid var(--neon);
-        color: var(--neon); background: transparent; cursor: pointer;
-      }
-      .btn:hover { background: rgba(57,255,20,0.12); box-shadow: 0 0 18px rgba(57,255,20,0.25); }
-      .btn.ghost { border-color: var(--line); color: var(--dim); }
-      .btn.ghost:hover { color: var(--cyan); border-color: var(--cyan); background: transparent; box-shadow: none; }
-
-      /* terminal */
-      .term {
-        margin-top: 40px; background: #050805; border: 1px solid var(--line);
-        border-radius: 12px; box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 60px rgba(57,255,20,0.03);
-        overflow: hidden;
-      }
-      .term-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 12px; }
-      .dot { width: 11px; height: 11px; border-radius: 50%; }
-      .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
-      .term-body { padding: 18px 18px 22px; font-size: 14px; min-height: 210px; }
-      .term-body .ln { white-space: pre-wrap; }
-      .prompt { color: var(--neon); } .arg { color: var(--cyan); }
-      .ok { color: var(--neon); } .warn { color: var(--amber); } .muted { color: var(--dim); }
-      .cursor { display: inline-block; width: 9px; height: 16px; background: var(--neon); margin-left: 2px; vertical-align: -2px; animation: blink 1s steps(1) infinite; }
-      @keyframes blink { 50% { opacity: 0; } }
-      .replay { margin-top: 12px; }
-
-      /* sections */
-      section { padding: 60px 0; border-top: 1px solid var(--line); }
-      .eyebrow { color: var(--cyan); font-size: 12px; letter-spacing: 0.25em; text-transform: uppercase; }
-      h2 { font-size: clamp(26px, 4vw, 38px); margin: 8px 0 6px; color: #eafff0; }
-      .muted-p { color: var(--dim); max-width: 720px; }
-
-      .grid { display: grid; gap: 16px; margin-top: 28px; }
-      .g3 { grid-template-columns: repeat(3, 1fr); }
-      .g2 { grid-template-columns: repeat(2, 1fr); }
-      @media (max-width: 760px) { .g3, .g2 { grid-template-columns: 1fr; } }
-      .card {
-        background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px;
-        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s;
-      }
-      .card:hover { transform: translateY(-3px); border-color: #2a522d; box-shadow: 0 0 28px rgba(57,255,20,0.08); }
-      .card h3 { margin: 0 0 8px; color: var(--neon); font-size: 17px; }
-      .card p { margin: 0; color: var(--dim); font-size: 14px; }
-      .card .kbd { color: var(--cyan); }
-
-      .pill { display: inline-block; font-size: 12px; color: var(--dim); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; margin: 4px 6px 0 0; }
-
-      /* safety */
-      .safety { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: center; }
-      @media (max-width: 760px) { .safety { grid-template-columns: 1fr; } }
-      .steps { list-style: none; padding: 0; margin: 20px 0 0; }
-      .steps li { padding: 12px 0; border-bottom: 1px dashed var(--line); display: flex; gap: 12px; }
-      .steps b { color: var(--neon); } .steps .x { color: var(--cyan); }
-
-      /* arch diagram */
-      pre.arch {
-        background: #050805; border: 1px solid var(--line); border-radius: 12px; padding: 20px;
-        overflow-x: auto; color: var(--txt); font-size: 13px; line-height: 1.5;
-      }
-      pre.arch b { color: var(--neon); } pre.arch i { color: var(--cyan); font-style: normal; }
-
-      /* capabilities */
-      .caps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; margin-top: 24px; }
-      @media (max-width: 760px) { .caps { grid-template-columns: 1fr; } }
-      .caps .row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
-      .caps .row code { color: var(--cyan); }
-      .caps .row.dest code { color: var(--red); }
-      .caps .row span { color: var(--dim); }
-
-      /* code block */
-      .code { background: #050805; border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; overflow-x: auto; margin-top: 22px; font-size: 13.5px; }
-      .code .c { color: var(--dim); } .code .p { color: var(--neon); }
-
-      footer { padding: 50px 0 70px; border-top: 1px solid var(--line); color: var(--dim); font-size: 13px; }
-      footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-
-      .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
-      .reveal.in { opacity: 1; transform: none; }
+      pre code { background: none; padding: 0; font-size: inherit; }
+      pre.flow { line-height: 1.4; color: var(--fg); }
+      .dim { color: var(--muted); }
+      hr { border: 0; border-top: 1px solid var(--line); margin: 48px 0 0; }
+      footer { padding: 26px 0 70px; color: var(--muted); font-size: 14px; }
+      footer a { color: var(--muted); }
     </style>
   </head>
   <body>
-    <nav>
-      <div class="wrap">
-        <div class="brand">SENTI<b>NEL</b></div>
-        <div class="navlinks">
-          <a href="#what">what</a>
-          <a href="#deploy">deploy</a>
-          <a href="#safe">safety</a>
-          <a href="#arch">architecture</a>
-          <a href="#skills">highlights</a>
-          <a href="#use">get&nbsp;started</a>
-          <a href="https://github.com/geneticglitch1/Sentinel">github ↗</a>
-        </div>
-      </div>
-    </nav>
-
-    <header>
-      <div class="wrap">
-        <span class="tag">AI AGENT SYSTEM · MCP · CLAUDE AGENT SDK</span>
-        <h1>Drive your homelab<br />from <span>one sentence.</span></h1>
-        <p class="lede">
-          Sentinel is a full AI agent system — it hands my Proxmox host, OPNsense firewall, and
-          Docker box to Claude. I describe what I want, the agent plans the tool calls, shows me
-          the plan — and only with my OK, does it.
+    <div class="wrap">
+      <header>
+        <h1>Sentinel</h1>
+        <p class="tagline">An AI agent that runs my homelab — I describe a change in plain English, it plans the tool calls and executes them.</p>
+        <p class="toplinks">
+          <a href="https://github.com/geneticglitch1/Sentinel">GitHub</a> &nbsp;·&nbsp; MIT
         </p>
-        <p class="sub">
-          Reachable from Claude Desktop, Claude Code, or the CLI. Dry-run by default. Everything audited.
-        </p>
-        <div class="cta">
-          <a class="btn" href="https://github.com/geneticglitch1/Sentinel">View on GitHub</a>
-          <a class="btn ghost" href="#use">How to use</a>
-        </div>
+      </header>
 
-        <div class="term" id="term">
-          <div class="term-bar">
-            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-            <span style="margin-left:8px">aryan@sentinel — zsh</span>
-          </div>
-          <div class="term-body" id="termBody"></div>
-        </div>
-        <button class="btn ghost replay" id="replay">↻ replay</button>
-      </div>
-    </header>
+      <p>
+        I got tired of SSHing through three different boxes to do one small thing — spin up a
+        container, open a port for it, check whether the firewall was actually dropping the scans
+        hitting it. Sentinel is an LLM agent that does all of that from a sentence: I describe what I
+        want, Claude figures out which tools to call, shows me the plan, and only runs it once I
+        confirm.
+      </p>
+      <p>
+        It's a real agentic system, not a chat wrapper — a single typed tool layer driving my Proxmox
+        host, my OPNsense firewall, and the Docker box, exposed through the
+        <a href="https://modelcontextprotocol.io">Model Context Protocol</a> and the Claude Agent SDK.
+      </p>
 
-    <section id="what">
-      <div class="wrap reveal">
-        <div class="eyebrow">what it controls</div>
-        <h2>Three systems, one tool layer</h2>
-        <p class="muted-p">
-          One definition of each tool drives all three. No "works in Claude Desktop but not the CLI" drift.
-        </p>
-        <div class="grid g3">
-          <div class="card"><h3>▣ Proxmox</h3><p>List, start, stop, reboot, and snapshot VMs &amp; containers — API token or <span class="kbd">qm/pct</span> over SSH.</p></div>
-          <div class="card"><h3>▤ OPNsense</h3><p>Firewall rules, Suricata IPS mode, CrowdSec health, GeoIP attackers, and a plain-English traffic feed.</p></div>
-          <div class="card"><h3>▦ Docker host</h3><p>Container lifecycle, one-sentence deploys, logs, and per-domain stats from Nginx Proxy Manager.</p></div>
-        </div>
+      <h2>What it controls</h2>
+      <ul>
+        <li><strong>Proxmox</strong> — list, start/stop, and snapshot VMs and containers.</li>
+        <li><strong>OPNsense</strong> — firewall rules, Suricata IPS, CrowdSec status, GeoIP on attackers, and a readable feed of what's hitting the box.</li>
+        <li><strong>Docker</strong> — deploy and manage containers, tail logs, and pull per-domain stats from Nginx Proxy Manager.</li>
+      </ul>
 
-        <div class="grid g3" style="margin-top:16px">
-          <div class="card"><h3>Claude Desktop</h3><p>Add the MCP server — every tool shows up natively.</p></div>
-          <div class="card"><h3>Claude Code</h3><p>Drop-in plugin. <span class="kbd">/mcp</span> → <span class="kbd">sentinel</span>.</p></div>
-          <div class="card"><h3>Agent SDK + CLI</h3><p><span class="kbd">sentinel deploy "…"</span> and the dashboard backend.</p></div>
-        </div>
-      </div>
-    </section>
+      <h2>How it works</h2>
+      <p>
+        Minimal moving parts, but it's a proper agent loop. Here's the whole path from a sentence to a
+        change on the hardware:
+      </p>
+      <pre class="flow"><code>  plain English
+       │
+       ▼
+  Claude Opus 4.8  ── agentic tool-use loop, adaptive thinking
+       │   picks + sequences tools
+       ▼
+  tool layer ──▶ safety gate (dry-run / confirm) ──▶ audit log (SQLite)
+       │
+       ▼
+  providers ──▶ Proxmox · OPNsense · Docker      (API / REST / SSH)</code></pre>
 
-    <section id="skills">
-      <div class="wrap reveal">
-        <div class="eyebrow">for recruiters · what this demonstrates</div>
-        <h2>A full AI agent system, end to end</h2>
-        <p class="muted-p">
-          Not a wrapper around a chatbot. Sentinel is a real agentic system: a typed tool layer, an
-          MCP server, a Claude Agent SDK loop, a service API, a CLI, and a dashboard — designed,
-          built, and tested as one. Here's the range it shows.
-        </p>
-        <div class="grid g2">
-          <div class="card">
-            <h3>◆ Agentic AI, properly</h3>
-            <p>An MCP server (Claude Desktop + Claude Code) and a Claude Agent SDK loop share one
-            typed tool layer — natural language → planned tool calls → execution. Opus&nbsp;4.8 with
-            adaptive thinking. Translates "deploy postgres, expose 5432" into a real command.</p>
-          </div>
-          <div class="card">
-            <h3>◆ Real infrastructure automation</h3>
-            <p>Drives Proxmox, an OPNsense firewall, and a Docker host over SSH, REST, and the
-            Proxmox API — VM lifecycle, container deploys, firewall rules, Suricata IPS, CrowdSec.
-            Production-style homelab, not a toy.</p>
-          </div>
-          <div class="card">
-            <h3>◆ Safety &amp; reliability engineering</h3>
-            <p>Dry-run-by-default, destructive-op refusal, a SQLite audit trail, and supported-only
-            apply paths — designed out of a real lockout incident. The judgment a recruiter actually
-            wants to see.</p>
-          </div>
-          <div class="card">
-            <h3>◆ Full-stack delivery</h3>
-            <p>Python backend, FastAPI service, Typer CLI, a Next.js dashboard, Docker packaging, and
-            a real test suite. Shipped as a coherent product, documented, and demoable.</p>
-          </div>
-        </div>
-      </div>
-    </section>
+      <h3>The agent loop</h3>
+      <p>
+        At the center is a Claude Agent SDK loop running Claude Opus 4.8 with adaptive thinking. It's
+        standard tool use / function calling: the model reads the request, decides which tools to call
+        and in what order, reads each result, and either calls more or answers. The model plans; the
+        harness executes. I stay in the loop for anything that changes state.
+      </p>
 
-    <section id="deploy">
-      <div class="wrap reveal">
-        <div class="eyebrow">the flagship</div>
-        <h2>One sentence → a deploy</h2>
-        <p class="muted-p">
-          Plain English becomes a real <span class="kbd">docker run</span>. It plans first — shows you the
-          exact command — then waits for the confirm. The demo above runs this end to end.
-        </p>
-        <div class="grid g2" style="margin-top:24px">
-          <div class="card"><h3>You say</h3><p style="color:var(--txt)">"run postgres:16 on the docker host, 2&nbsp;GB RAM, expose 5432, volume pgdata"</p></div>
-          <div class="card"><h3>Sentinel plans</h3><p style="color:var(--txt)"><code style="color:var(--cyan)">docker run -d --name pg --memory 2g -p 5432:5432 -v pgdata:/var/lib/postgresql/data postgres:16</code></p></div>
-        </div>
-      </div>
-    </section>
+      <h3>One tool layer, three surfaces</h3>
+      <p>
+        Every capability is a single typed function in one module. That module is wrapped two ways: a
+        <strong>FastMCP server over stdio</strong> (the MCP server that Claude Desktop and the Claude
+        Code plugin connect to) and an <strong>in-process MCP server registered with the Claude Agent
+        SDK</strong> (what the deploy/chat agent and the CLI drive). Same functions behind all of it, so
+        a deploy behaves identically whether it comes from Claude Desktop, Claude Code, or the terminal.
+      </p>
 
-    <section id="safe">
-      <div class="wrap reveal">
-        <div class="eyebrow">why it's trustworthy</div>
-        <h2>Safe by default</h2>
-        <div class="safety">
-          <div>
-            <p class="muted-p">
-              A control plane can lock you out via the firewall or nuke a VM. So the rule is strict, and it
-              lives in one place: nothing changes the homelab without passing the gate.
-            </p>
-            <ul class="steps">
-              <li><b>Dry-run first.</b><span class="muted">Every mutating tool returns a plan and touches nothing — unless you pass <span class="x">confirm=true</span>.</span></li>
-              <li><b>Destructive ops refuse.</b><span class="muted">Stop a VM, drop a firewall rule, <span class="x">rm</span> a container? Blocked without an explicit confirm.</span></li>
-              <li><b>Everything audited.</b><span class="muted">Planned or applied, every call lands in a SQLite log the dashboard reads.</span></li>
-              <li><b>Supported paths only.</b><span class="muted">OPNsense changes go through <span class="x">configctl</span> / REST — never raw PHP — and back up <span class="x">config.xml</span> first.</span></li>
-            </ul>
-          </div>
-          <div class="card">
-            <h3 style="color:var(--amber)">a real lesson</h3>
-            <p style="color:var(--txt)">
-              Hardening the firewall by hand once, I stopped sshd mid-change and locked myself out.
-              Recoverable — but never again. That incident is the reason the OPNsense provider is the way it
-              is: backup, supported apply path, verify the listener is back. The mistake is designed out.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
+      <h3>What happens on every call</h3>
+      <p>A tool that changes something never just acts. It runs a fixed pipeline:</p>
+      <ol>
+        <li>builds a <code>PlannedChange</code> — a structured description of what it would do, flagged destructive or not;</li>
+        <li>passes it through the <strong>safety gate</strong> — returns the plan untouched unless <code>confirm=true</code>, and refuses outright if it's destructive and unconfirmed;</li>
+        <li>calls the provider to do the real I/O;</li>
+        <li>writes the outcome — planned or applied — to an append-only <strong>SQLite audit log</strong>;</li>
+        <li>returns a typed <code>ActionResult</code>.</li>
+      </ol>
+      <p>
+        The gate and the audit live in the tool layer, not in any one surface — so the same guarantees
+        hold whether the call came from the agent, the MCP server, or the CLI.
+      </p>
 
-    <section id="arch">
-      <div class="wrap reveal">
-        <div class="eyebrow">how it's wired</div>
-        <h2>Architecture</h2>
-        <pre class="arch">
-   This Mac                                  192.168.1.217 (Docker)
- ┌────────────────────────┐    SSH         ┌─────────────────────────────┐
- │ <b>sentinel-mcp</b> (stdio)    │──── jump ─────▶│ <b>sentinel-agent</b> (FastAPI)     │
- │   ← Claude Desktop      │   homelab      │   Claude Agent SDK + tools  │
- │   ← Claude Code plugin   │                │   /deploy /chat → audit.db  │
- └────────────────────────┘                │ <i>secdash</i> (Next.js, :8095)     │
-          both import                        │   + Deploy / Infra / Audit  │
-          <b>sentinel.tools</b>                    └─────────────────────────────┘
-                                  │
-       Proxmox · OPNsense · Docker  (paramiko, proxmoxer, httpx)
-        </pre>
-        <p class="muted-p" style="margin-top:14px">
-          Providers do the raw I/O and stay honest about side effects. The tool layer owns the
-          dry-run / confirm gate and the audit log. That split is the whole reason the safety story holds.
-        </p>
-      </div>
-    </section>
+      <h3>Talking to the hardware</h3>
+      <p>
+        Providers are thin and side-effect-honest — a method that mutates, mutates; nothing hides logic.
+      </p>
+      <ul>
+        <li><strong>Proxmox</strong> — the API via <code>proxmoxer</code> (token auth), falling back to <code>qm</code>/<code>pct</code> over SSH.</li>
+        <li><strong>OPNsense</strong> — the REST API (<code>httpx</code>) for rules and IPS settings, plus SSH for what the API doesn't expose: <code>configctl</code>, <code>cscli</code>, Suricata, GeoIP via <code>mmdblookup</code>, and the raw filter log. Mutations back up <code>config.xml</code> first and only use supported apply paths.</li>
+        <li><strong>Docker</strong> — the <code>docker</code> CLI over SSH, plus parsing Nginx Proxy Manager access logs for per-domain stats.</li>
+      </ul>
+      <p>
+        The one-sentence deploy and the dashboard run as a FastAPI service (the agent) alongside a small
+        Next.js front-end that reads the audit log and calls the agent to plan a deploy.
+      </p>
 
-    <section>
-      <div class="wrap reveal">
-        <div class="eyebrow">what's in the box</div>
-        <h2>Capabilities</h2>
-        <div class="caps">
-          <div class="row"><code>vm_list / vm_action / vm_snapshot</code><span>Proxmox lifecycle</span></div>
-          <div class="row"><code>container_list / container_logs</code><span>Docker reads</span></div>
-          <div class="row dest"><code>deploy_container</code><span>one-sentence deploy</span></div>
-          <div class="row dest"><code>firewall_rule</code><span>add / delete (REST + backup)</span></div>
-          <div class="row dest"><code>ids_set_mode / ids_update_rules</code><span>Suricata IPS</span></div>
-          <div class="row"><code>crowdsec_status</code><span>blocklist + LAPI health</span></div>
-          <div class="row"><code>firewall_traffic</code><span>classified, human-readable</span></div>
-          <div class="row"><code>geo_attackers</code><span>top IPs + GeoIP country</span></div>
-          <div class="row"><code>npm_domains</code><span>per-domain request mix</span></div>
-          <div class="row"><code>ntfy_alert / audit_log</code><span>alerts + history</span></div>
-        </div>
-        <p class="muted-p" style="margin-top:14px"><span style="color:var(--red)">red</span> = destructive; refuses without an explicit confirm.</p>
-      </div>
-    </section>
+      <h2>Example</h2>
+      <p class="muted">One sentence becomes a real command. It plans first, then asks.</p>
+      <pre><code>$ sentinel deploy "run postgres:16, 2GB ram, expose 5432, volume pgdata"
 
-    <section id="use">
-      <div class="wrap reveal">
-        <div class="eyebrow">get started</div>
-        <h2>Up and running</h2>
-        <div class="code">
-<span class="c"># install + configure</span>
-<span class="p">$</span> uv sync
-<span class="p">$</span> cp config.example.yaml config.yaml   <span class="c"># hosts</span>
-<span class="p">$</span> cp .env.example .env                  <span class="c"># ANTHROPIC_API_KEY, ssh key</span>
+plan (nothing applied yet):
+  docker run -d --name pg --restart unless-stopped --memory 2g \
+    -p 5432:5432 -v pgdata:/var/lib/postgresql/data postgres:16
 
-<span class="c"># read-only sanity check</span>
-<span class="p">$</span> uv run sentinel status
+Apply this plan? [y/N]</code></pre>
 
-<span class="c"># the flagship — plans first, then asks</span>
-<span class="p">$</span> uv run sentinel deploy "run postgres:16, 2GB ram, expose 5432, volume pgdata"
+      <h2>Safe by default</h2>
+      <p>
+        Every change is a dry run unless I pass a confirm. Anything destructive — stopping a VM,
+        deleting a firewall rule, removing a container — refuses to run without it, and every action
+        gets logged.
+      </p>
+      <p>
+        I added that after I once stopped sshd mid-change on the firewall and locked myself out.
+        Recoverable, but annoying. Now firewall changes only go through supported paths and back up the
+        config first, so that particular mistake can't happen again.
+      </p>
 
-<span class="c"># expose the tools to Claude Desktop / Claude Code</span>
-<span class="p">$</span> uv run sentinel mcp
-        </div>
-        <p class="muted-p" style="margin-top:16px">
-          Wiring snippets for Claude Desktop and the Claude Code plugin live in the repo README.
-        </p>
-      </div>
-    </section>
+      <h2>Getting started</h2>
+      <pre><code>uv sync
+cp config.example.yaml config.yaml   <span class="dim"># your hosts</span>
+cp .env.example .env                  <span class="dim"># API key + ssh key</span>
 
-    <section>
-      <div class="wrap reveal">
-        <div class="eyebrow">built with</div>
-        <h2>Stack</h2>
-        <div style="margin-top:18px">
-          <span class="pill">Python 3.12</span><span class="pill">uv</span>
-          <span class="pill">Claude Agent SDK</span><span class="pill">MCP (FastMCP)</span>
-          <span class="pill">FastAPI</span><span class="pill">Typer</span>
-          <span class="pill">Pydantic</span><span class="pill">paramiko</span>
-          <span class="pill">proxmoxer</span><span class="pill">httpx</span>
-          <span class="pill">SQLite</span><span class="pill">Next.js dashboard</span>
-          <span class="pill">Docker</span><span class="pill">claude-opus-4-8</span>
-        </div>
-      </div>
-    </section>
+uv run sentinel status                <span class="dim"># read-only sanity check</span>
+uv run sentinel deploy "..."          <span class="dim"># plans, then asks</span>
+uv run sentinel mcp                   <span class="dim"># expose tools to Claude Desktop / Code</span></code></pre>
+      <p class="muted">Full setup, including the Claude Desktop and Claude Code wiring, is in the <a href="https://github.com/geneticglitch1/Sentinel">README</a>.</p>
 
-    <footer>
-      <div class="wrap">
-        <div>SENTINEL · a Claude-driven homelab control plane · MIT</div>
-        <div><a href="https://github.com/geneticglitch1/Sentinel">github.com/geneticglitch1/Sentinel</a></div>
-      </div>
-    </footer>
+      <h2>Built with</h2>
+      <p class="muted">
+        Python · Claude Opus 4.8 · Claude Agent SDK · Model Context Protocol (FastMCP) · tool-use /
+        function calling · FastAPI · Typer · Pydantic · paramiko · proxmoxer · httpx · SQLite · a small
+        Next.js dashboard · Docker.
+      </p>
 
-    <script>
-      // --- typed terminal demo -------------------------------------------------
-      const body = document.getElementById("termBody");
-      const script = [
-        { t: 'prompt', text: '$ ', keep: true },
-        { t: 'type', cls: '', text: 'sentinel deploy ' },
-        { t: 'type', cls: 'arg', text: '"run postgres:16 on the docker host, 2GB ram, expose 5432, volume pgdata"' },
-        { t: 'nl' },
-        { t: 'line', cls: 'muted', text: 'planning (dry run)…' },
-        { t: 'pause', ms: 500 },
-        { t: 'line', cls: '', text: '  → deploy_container {image: postgres:16, name: pg, memory: 2g, ports: [5432:5432]}' },
-        { t: 'line', cls: '', text: '  → firewall_rule {action: add, port: 5432/tcp}' },
-        { t: 'nl' },
-        { t: 'line', cls: 'warn', text: 'PLAN — nothing applied yet:' },
-        { t: 'line', cls: 'arg', text: '  docker run -d --name pg --restart unless-stopped --memory 2g \\' },
-        { t: 'line', cls: 'arg', text: '    -p 5432:5432 -v pgdata:/var/lib/postgresql/data postgres:16' },
-        { t: 'pause', ms: 500 },
-        { t: 'line', cls: 'prompt', text: 'Apply this plan? [y/N] y' },
-        { t: 'pause', ms: 350 },
-        { t: 'line', cls: 'ok', text: '✓ deployed pg (a1b2c3d4) · firewall rule added · audit #142' },
-      ];
-
-      let timer = null;
-      function clearTimers() { if (timer) { clearTimeout(timer); timer = null; } }
-
-      function runDemo() {
-        clearTimers();
-        body.innerHTML = "";
-        let curLine = document.createElement("div");
-        curLine.className = "ln";
-        body.appendChild(curLine);
-        const cursor = document.createElement("span");
-        cursor.className = "cursor";
-        body.appendChild(cursor);
-
-        let i = 0;
-        function newLine() {
-          curLine = document.createElement("div");
-          curLine.className = "ln";
-          body.insertBefore(curLine, cursor);
-        }
-        function step() {
-          if (i >= script.length) { return; }
-          const s = script[i++];
-          if (s.t === "prompt") {
-            const span = document.createElement("span");
-            span.className = "prompt";
-            span.textContent = s.text;
-            curLine.appendChild(span);
-            timer = setTimeout(step, 120);
-          } else if (s.t === "type") {
-            const span = document.createElement("span");
-            if (s.cls) span.className = s.cls;
-            curLine.appendChild(span);
-            let j = 0;
-            (function typeChar() {
-              if (j < s.text.length) {
-                span.textContent += s.text[j++];
-                timer = setTimeout(typeChar, 18 + Math.random() * 30);
-              } else { step(); }
-            })();
-          } else if (s.t === "nl") {
-            newLine();
-            timer = setTimeout(step, 60);
-          } else if (s.t === "line") {
-            newLine();
-            if (s.cls) curLine.className = "ln " + s.cls;
-            curLine.textContent = s.text;
-            timer = setTimeout(step, 90);
-          } else if (s.t === "pause") {
-            timer = setTimeout(step, s.ms);
-          }
-        }
-        step();
-      }
-
-      document.getElementById("replay").addEventListener("click", runDemo);
-
-      // --- scroll reveal -------------------------------------------------------
-      const io = new IntersectionObserver(
-        (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("in"); }),
-        { threshold: 0.12 }
-      );
-      document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
-
-      // kick off the demo once on load
-      runDemo();
-    </script>
+      <hr />
+      <footer>
+        <a href="https://github.com/geneticglitch1/Sentinel">github.com/geneticglitch1/Sentinel</a>
+      </footer>
+    </div>
   </body>
 </html>
